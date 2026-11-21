@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI-Based Electricity Usage Prediction and Saving System</title>
+<style>
+:root{--bg:#f4f6fa;--panel:#fff;--text:#1b2433;--muted:#667085;--border:#dde3ec;--accent:#2563eb;--accent2:#1e4fc4;--grid:#e8ecf3;--good:#15803d;--warn:#b45309;--warnbg:#fff7e6;--bad:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--bg:#0f141c;--panel:#18202c;--text:#e6ebf3;--muted:#98a2b3;--border:#2a3546;--accent:#5b8def;--accent2:#7aa2f7;--grid:#243040;--good:#4ade80;--warn:#fbbf24;--warnbg:#2b2412;--bad:#f87171}}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text)}
+header{padding:14px 22px;background:var(--panel);border-bottom:1px solid var(--border)}
+header h1{margin:0;font-size:19px}
+header p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.layout{display:grid;grid-template-columns:310px 1fr;gap:18px;padding:18px;max-width:1500px;margin:0 auto}
+@media(max-width:900px){.layout{grid-template-columns:1fr}}
+aside,.card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+aside h3{margin:14px 0 6px;font-size:13px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+aside h3:first-child{margin-top:0}
+label{display:block;font-size:12.5px;color:var(--muted);margin:8px 0 3px}
+input[type=text],input[type=number],select{width:100%;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font:inherit}
+input[type=range]{width:100%}
+.row{display:flex;gap:10px}.row>*{flex:1}
+button{padding:8px 14px;border:0;border-radius:6px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+button:hover{background:var(--accent2)}button.sec{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+button:disabled{opacity:.5;cursor:wait}
+.tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:14px;border-bottom:1px solid var(--border)}
+.tab{padding:9px 15px;cursor:pointer;border-bottom:3px solid transparent;color:var(--muted);font-weight:600;background:none;border-radius:0}
+.tab:hover{background:none;color:var(--text)}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.pane{display:none}.pane.active{display:block}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.metric{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:10px 14px}
+.metric .k{font-size:12px;color:var(--muted)}.metric .v{font-size:21px;font-weight:700}.metric .d{font-size:12px;color:var(--good);font-weight:600}
+canvas{width:100%;display:block;background:var(--panel);border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
+table{width:100%;border-collapse:collapse;font-size:13px;background:var(--panel)}
+th,td{padding:7px 10px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+th{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+td.n,th.n{text-align:right;white-space:nowrap}
+.tablewrap{max-height:420px;overflow:auto;border:1px solid var(--border);border-radius:10px;margin-bottom:14px}
+.banner{padding:9px 13px;border-radius:8px;margin-bottom:14px;font-size:13px}
+.banner.warn{background:var(--warnbg);color:var(--warn);border:1px solid var(--warn)}
+.banner.err{background:var(--warnbg);color:var(--bad);border:1px solid var(--bad)}
+.banner.ok{border:1px solid var(--good);color:var(--good)}
+.note{font-size:12px;color:var(--muted);margin:-6px 0 14px}
+.pill{padding:1px 8px;border-radius:99px;font-size:11.5px;font-weight:700}
+.High{background:#fde2e2;color:#9b1c1c}.Medium{background:#fdecc8;color:#8a5200}
+.progress{height:8px;background:var(--grid);border-radius:99px;overflow:hidden;margin:8px 0}
+.progress div{height:100%;width:0;background:var(--accent);transition:width .2s}
+.checks label{display:flex;gap:8px;align-items:center;color:var(--text);margin:6px 0;font-size:13.5px}
+.checks input{margin:0}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:18px}@media(max-width:800px){.two{grid-template-columns:1fr}}
+footer{text-align:center;color:var(--muted);font-size:12px;padding:6px 0 22px}
+.info{font-size:12.5px;color:var(--muted);margin-top:10px;line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ AI-Based Electricity Usage Prediction and Saving System</h1>
+  <p>Gradient-boosted trees (XGBoost-style) forecasting · Isolation Forest anomaly detection · personalised recommendations · What-if simulator — everything runs in your browser.</p>
+</header>
+
+<div class="layout">
+<aside>
+  <h3>Data source</h3>
+  <select id="src">
+    <option value="synth">Synthetic campus data (2 years)</option>
+    <option value="csv">Upload Kaggle / own CSV</option>
+  </select>
+
+  <div id="csvBox" style="display:none">
+    <label>Preset</label>
+    <select id="preset">
+      <option value="">Custom</option>
+      <option value="uci">UCI Household Power (Kaggle)</option>
+      <option value="pjm">PJM Hourly Energy (Kaggle)</option>
+    </select>
+    <label>CSV file</label>
+    <input type="file" id="file" accept=".csv,.txt,.tsv">
+    <div class="info" id="cols"></div>
+    <label>Datetime column(s), comma-separated</label>
+    <input type="text" id="dtc" value="Datetime">
+    <label>Consumption column</label>
+    <input type="text" id="kwc" placeholder="e.g. Global_active_power">
+    <div class="row">
+      <div><label>Separator</label><select id="sep"><option value="auto">Auto</option><option value=",">,</option><option value=";">;</option><option value="&#9;">Tab</option></select></div>
+      <div><label>To hourly</label><select id="agg"><option value="mean">Mean</option><option value="sum">Sum</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>Scale factor</label><input type="number" id="scale" value="1" step="any"></div>
+      <div><label>Date order</label><select id="dfmt"><option value="dmy">dd/mm/yyyy</option><option value="mdy">mm/dd/yyyy</option></select></div>
+    </div>
+    <label>Temperature column (optional)</label><input type="text" id="tmc">
+    <label>Occupancy column (optional)</label><input type="text" id="occ">
+  </div>
+
+  <h3>Settings</h3>
+  <label>Tariff (₹ / kWh)</label>
+  <input type="number" id="tariff" value="8" min="1" max="30" step="0.5">
+  <label>Anomaly sensitivity: <b id="contV">1.0</b>% of hours flagged</label>
+  <input type="range" id="cont" min="0.5" max="5" step="0.5" value="1">
+  <div style="margin-top:12px"><button id="run" style="width:100%">Load data &amp; run analysis</button></div>
+  <div class="progress" id="prog" style="display:none"><div></div></div>
+  <div class="info" id="status"></div>
+  <h3>Dataset</h3>
+  <div class="info" id="dsinfo">—</div>
+</aside>
+
+<main>
+  <div id="msg"></div>
+  <div class="tabs" id="tabs">
+    <button class="tab active" data-t="overview">Overview</button>
+    <button class="tab" data-t="forecast">Forecast</button>
+    <button class="tab" data-t="anom">Anomalies</button>
+    <button class="tab" data-t="recs">Recommendations</button>
+    <button class="tab" data-t="sim">What-if simulator</button>
+  </div>
+
+  <section class="pane active" id="p-overview">
+    <div class="metrics" id="ov-metrics"></div>
+    <canvas id="c-daily" style="height:330px"></canvas>
+    <canvas id="c-hourly" style="height:330px"></canvas>
+  </section>
+
+  <section class="pane" id="p-forecast">
+    <div class="metrics" id="fc-metrics"></div>
+    <div class="note">Metrics are measured on a chronological hold-out (last 20% of the data) that the model never saw in training.</div>
+    <label>Hours of test period to show: <b id="fcnV">168</b></label>
+    <input type="range" id="fcn" min="48" max="336" step="24" value="168">
+    <canvas id="c-fc" style="height:340px"></canvas>
+    <canvas id="c-next" style="height:300px"></canvas>
+    <div id="next-total" class="note"></div>
+    <canvas id="c-imp" style="height:360px"></canvas>
+  </section>
+
+  <section class="pane" id="p-anom">
+    <div class="metrics" id="an-metrics"></div>
+    <label>Days to display: <b id="andV">30</b></label>
+    <input type="range" id="and" min="7" max="120" step="1" value="30">
+    <canvas id="c-an" style="height:340px"></canvas>
+    <div style="margin-bottom:8px"><button class="sec" id="dl-an">Download anomalies CSV</button></div>
+    <div class="tablewrap"><table id="an-table"></table></div>
+  </section>
+
+  <section class="pane" id="p-recs">
+    <div id="rec-total"></div>
+    <div class="tablewrap" style="max-height:none"><table id="rec-table"></table></div>
+    <div class="note">Savings use editable engineering assumptions (avoidable share of each load, 6% AC saving per °C) defined in the script.</div>
+    <button class="sec" id="dl-rec">Download recommendations CSV</button>
+  </section>
+
+  <section class="pane" id="p-sim">
+    <div class="card" style="margin-bottom:14px">
+      <div class="two">
+        <div class="checks">
+          <label><input type="checkbox" id="s-ac"> Switch off AC when unoccupied</label>
+          <label><input type="checkbox" id="s-li"> Switch off lights when unoccupied</label>
+          <label><input type="checkbox" id="s-lab"> Switch off lab equipment when unoccupied</label>
+          <label>Lab shutdown after (hour)</label>
+          <select id="s-labh"><option value="">Off</option><option>17</option><option>18</option><option>19</option><option>20</option></select>
+        </div>
+        <div>
+          <label>Raise AC setpoint: <b id="s-spV">0</b> °C</label>
+          <input type="range" id="s-sp" min="0" max="4" step="1" value="0">
+          <label>Reduce AC usage while occupied: <b id="s-acrV">0</b> %</label>
+          <input type="range" id="s-acr" min="0" max="50" step="5" value="0">
+        </div>
+      </div>
+    </div>
+    <div class="metrics" id="sim-metrics"></div>
+    <canvas id="c-sim" style="height:340px"></canvas>
+    <div class="note">The simulator applies each action to the appliance-level load of the loaded data, then converts the saved kWh into ₹ and CO₂ (0.71 kg/kWh).</div>
+  </section>
+</main>
+</div>
+<footer>Final Year Project · Department of CSE · Siddharth Institute of Engineering &amp; Technology</footer>
+
+<script>
+"use strict";
+/* =====================================================================
+   1. UTILITIES
+   ===================================================================== */
+const $ = id => document.getElementById(id);
+const HOUR = 3600000, DAY = 86400000;
+const MON = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+const fmt = (v, d = 0) => isFinite(v) ? Number(v).toLocaleString("en-IN", {maximumFractionDigits: d, minimumFractionDigits: d}) : "–";
+const pad = n => String(n).padStart(2, "0");
+const isoHour = ms => { const d = new Date(ms); return `${d.getUTCFullYear()}-${pad(d.getUTCMonth()+1)}-${pad(d.getUTCDate())} ${pad(d.getUTCHours())}:00`; };
+const sleep = () => new Promise(r => setTimeout(r, 0));
+const median = a => { if (!a.length) return NaN; const s = Float64Array.from(a).sort(); const m = s.length >> 1; return s.length % 2 ? s[m] : (s[m-1] + s[m]) / 2; };
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function makeGauss(rng){return ()=>{let u=0,v=0;while(!u)u=rng();v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)}}
+function calendar(ts){
+  const n = ts.length, hour = new Int8Array(n), dow = new Int8Array(n), month = new Int8Array(n), doy = new Int16Array(n);
+  for (let i = 0; i < n; i++) {
+    const d = new Date(ts[i]), day = Math.floor(ts[i] / DAY);
+    hour[i] = d.getUTCHours(); dow[i] = ((day + 3) % 7 + 7) % 7; month[i] = d.getUTCMonth() + 1;
+    doy[i] = Math.round((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(d.getUTCFullYear(), 0, 0)) / DAY);
+  }
+  return {hour, dow, month, doy};
+}
+function sumWhere(arr, mask) { let s = 0; for (let i = 0; i < arr.length; i++) if (mask(i) && isFinite(arr[i])) s += arr[i]; return s; }
+function download(name, text) {
+  const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([text], {type: "text/csv"}));
+  a.download = name; document.body.appendChild(a); a.click(); a.remove();
+}
+
+/* =====================================================================
+   2. DATA: synthetic generator, CSV loader, context estimation
+   ===================================================================== */
+const COMP = ["ac", "light", "lab", "other"];
+
+function occupancyAt(hour, dow, hol) {
+  let o = (hour >= 8 && hour < 17) ? 0.9 : (hour >= 17 && hour < 20) ? 0.3 : 0.05;
+  if (dow === 5) o *= 0.4;
+  if (dow === 6) o = 0.03;
+  if (hol) o = 0.03;
+  return o;
+}
+function tempAt(doy, hour) {
+  return 29 + 5 * Math.sin(2 * Math.PI * (doy - 90) / 365) + 4 * Math.sin(2 * Math.PI * (hour - 9) / 24);
+}
+function newDF(ts) {
+  const n = ts.length, cal = calendar(ts);
+  const f = () => new Float64Array(n);
+  return {n, ts, cal, total: f(), ac: f(), light: f(), lab: f(), other: f(), temp: f(), occ: f(), hol: f(), inj: null, attrs: {}};
+}
+
+function generateSynthetic(days = 730, seed = 42) {
+  const rng = mulberry32(seed), g = makeGauss(rng), n = days * 24;
+  const start = Date.UTC(2024, 0, 1), ts = new Float64Array(n);
+  for (let i = 0; i < n; i++) ts[i] = start + i * HOUR;
+  const df = newDF(ts), {hour, dow, doy} = df.cal;
+  const shuffled = k => { const a = Array.from({length: days}, (_, i) => i); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return new Set(a.slice(0, k)); };
+  const holDays = shuffled(Math.max(8, Math.floor(days / 30)));
+  const leftDays = shuffled(Math.floor(0.12 * days));
+  for (let i = 0; i < n; i++) {
+    const d = Math.floor(i / 24), hol = holDays.has(d) ? 1 : 0;
+    const occ = Math.min(1, Math.max(0, occupancyAt(hour[i], dow[i], hol) + g() * 0.04));
+    const temp = tempAt(doy[i], hour[i]) + g();
+    let ac = (30 + 150 * occ) * Math.max(temp - 23, 0) / 10;
+    if (leftDays.has(d) && (hour[i] >= 18 || hour[i] < 6)) ac += g() * 6 + 55;
+    df.ac[i] = Math.max(0, ac);
+    df.light[i] = Math.max(0, 60 * occ + 8 + g() * 1.5);
+    df.lab[i] = Math.max(0, 80 * occ + 12 + g() * 2);
+    df.other[i] = Math.max(0, 40 + 10 * occ + g() * 2);
+    df.temp[i] = temp; df.occ[i] = occ; df.hol[i] = hol;
+    df.total[i] = df.ac[i] + df.light[i] + df.lab[i] + df.other[i];
+  }
+  df.inj = new Uint8Array(n);
+  const pos = new Set(); const nAn = Math.floor(0.01 * n);
+  while (pos.size < nAn) pos.add(Math.floor(rng() * n));
+  for (const p of pos) { df.ac[p] += (0.6 + 0.6 * rng()) * df.total[p]; df.total[p] = df.ac[p] + df.light[p] + df.lab[p] + df.other[p]; df.inj[p] = 1; }
+  df.name = "Synthetic campus data (generated)";
+  return df;
+}
+
+/* --- CSV parsing --- */
+function parseTS(s, dmy) {
+  s = s.trim().replace(/^"|"$/g, "");
+  let m = /^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/.exec(s), y, mo, d, h, mi;
+  if (m) { y = +m[1]; mo = +m[2]; d = +m[3]; h = +(m[4] || 0); mi = +(m[5] || 0); }
+  else {
+    m = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/.exec(s);
+    if (!m) return NaN;
+    y = +m[3]; h = +(m[4] || 0); mi = +(m[5] || 0);
+    if (dmy) { d = +m[1]; mo = +m[2]; } else { mo = +m[1]; d = +m[2]; }
+  }
+  return Date.UTC(y, mo - 1, d, h, mi);
+}
+function splitLine(line, sep) {
+  if (line.indexOf('"') < 0) return line.split(sep);
+  const out = []; let cur = "", q = false;
+  for (const ch of line) { if (ch === '"') q = !q; else if (ch === sep && !q) { out.push(cur); cur = ""; } else cur += ch; }
+  out.push(cur); return out;
+}
+function detectSep(headerLine) {
+  const c = {",": 0, ";": 0, "\t": 0};
+  for (const ch of headerLine) if (ch in c) c[ch]++;
+  return Object.keys(c).sort((a, b) => c[b] - c[a])[0];
+}
+
+async function loadCSV(text, o, onProg) {
+  let p = 0; const len = text.length;
+  let e = text.indexOf("\n"); if (e < 0) e = len;
+  const header = text.slice(0, e).replace(/\r$/, "").replace(/^\uFEFF/, "");
+  const sep = o.sep === "auto" ? detectSep(header) : o.sep;
+  const cols = splitLine(header, sep).map(s => s.trim().replace(/^"|"$/g, ""));
+  const find = name => { const i = cols.findIndex(c => c.toLowerCase() === name.trim().toLowerCase()); if (i < 0) throw new Error(`Column "${name}" not found. Columns in file: ${cols.join(", ")}`); return i; };
+  const dtIdx = o.dtCols.map(find), kwIdx = find(o.kwCol);
+  const tIdx = o.tempCol ? find(o.tempCol) : -1, oIdx = o.occCol ? find(o.occCol) : -1;
+  const acc = new Map(); let rows = 0, bad = 0, minK = Infinity, maxK = -Infinity;
+  p = e + 1;
+  while (p < len) {
+    let q = text.indexOf("\n", p); if (q < 0) q = len;
+    const line = text.slice(p, q).replace(/\r$/, ""); p = q + 1;
+    if (!line) continue;
+    const f = splitLine(line, sep);
+    const t = parseTS(dtIdx.map(i => f[i] || "").join(" "), o.dmy);
+    const v = parseFloat(f[kwIdx]);
+    if (!isFinite(t) || !isFinite(v)) { bad++; continue; }
+    const k = Math.floor(t / HOUR);
+    let a = acc.get(k); if (!a) { a = [0, 0, 0, 0, 0, 0]; acc.set(k, a); if (k < minK) minK = k; if (k > maxK) maxK = k; }
+    a[0] += v * o.scale; a[1]++;
+    if (tIdx >= 0) { const x = parseFloat(f[tIdx]); if (isFinite(x)) { a[2] += x; a[3]++; } }
+    if (oIdx >= 0) { const x = parseFloat(f[oIdx]); if (isFinite(x)) { a[4] += x; a[5]++; } }
+    if (++rows % 150000 === 0) { onProg && onProg(p / len); await sleep(); }
+  }
+  if (!acc.size) throw new Error("No valid rows were read. Check the datetime column, date order and consumption column.");
+  let nH = maxK - minK + 1, startK = minK;
+  const MAXH = 26280; let trimmed = false;
+  if (nH > MAXH) { startK = maxK - MAXH + 1; nH = MAXH; trimmed = true; }
+  const ts = new Float64Array(nH); for (let i = 0; i < nH; i++) ts[i] = (startK + i) * HOUR;
+  const df = newDF(ts);
+  df.total.fill(NaN); df.temp.fill(NaN); df.occ.fill(NaN);
+  for (let i = 0; i < nH; i++) {
+    const a = acc.get(startK + i); if (!a) continue;
+    df.total[i] = o.agg === "sum" ? a[0] : a[0] / a[1];
+    if (a[3]) df.temp[i] = a[2] / a[3];
+    if (a[5]) df.occ[i] = a[4] / a[5];
+  }
+  interpolate(df.total, 6);
+  df.attrs.badRows = bad; df.attrs.trimmed = trimmed; df.attrs.hasTemp = tIdx >= 0; df.attrs.hasOcc = oIdx >= 0;
+  addContext(df);
+  df.name = `Uploaded CSV (${fmt(rows)} rows → ${fmt(nH)} hourly points)`;
+  return df;
+}
+function interpolate(a, limit) {
+  const n = a.length; let i = 0;
+  while (i < n) {
+    if (isFinite(a[i])) { i++; continue; }
+    let j = i; while (j < n && !isFinite(a[j])) j++;
+    if (i > 0 && j < n && j - i <= limit) for (let k = i; k < j; k++) a[k] = a[i-1] + (a[j] - a[i-1]) * (k - i + 1) / (j - i + 1);
+    i = j;
+  }
+}
+function fillNearest(a, fallback) {
+  let last = NaN; for (let i = 0; i < a.length; i++) { if (isFinite(a[i])) last = a[i]; else if (isFinite(last)) a[i] = last; }
+  last = NaN; for (let i = a.length - 1; i >= 0; i--) { if (isFinite(a[i])) last = a[i]; else if (isFinite(last)) a[i] = last; }
+  for (let i = 0; i < a.length; i++) if (!isFinite(a[i])) a[i] = fallback(i);
+}
+function addContext(df) {
+  const {hour, dow, doy} = df.cal, n = df.n;
+  if (!df.attrs.hasTemp) { for (let i = 0; i < n; i++) df.temp[i] = tempAt(doy[i], hour[i]); df.attrs.tempEst = true; }
+  else fillNearest(df.temp, i => tempAt(doy[i], hour[i]));
+  if (!df.attrs.hasOcc) { for (let i = 0; i < n; i++) df.occ[i] = occupancyAt(hour[i], dow[i], df.hol[i]); df.attrs.occEst = true; }
+  else fillNearest(df.occ, i => occupancyAt(hour[i], dow[i], df.hol[i]));
+  df.attrs.applianceEst = true;
+  for (let i = 0; i < n; i++) {
+    const w = [0.30 + 0.03 * Math.max(df.temp[i] - 24, 0), 0.20, 0.15, 0.35], s = w[0] + w[1] + w[2] + w[3];
+    df.ac[i] = df.total[i] * w[0] / s; df.light[i] = df.total[i] * w[1] / s;
+    df.lab[i] = df.total[i] * w[2] / s; df.other[i] = df.total[i] * w[3] / s;
+  }
+}
+
+/* =====================================================================
+   3. FEATURES
+   ===================================================================== */
+const FEATURES = ["hour","dow","month","is_weekend","hour_sin","hour_cos","dow_sin","dow_cos","temperature","occupancy","is_holiday","lag_24","lag_48","lag_168","roll_mean_24"];
+
+/* frame = {n, ts, cal, total, temp, occ, hol}. Lags are >= 24 h, so a 24-h-ahead forecast needs no recursion. */
+function computeFeatures(fr) {
+  const n = fr.n, {hour, dow, month} = fr.cal, X = FEATURES.map(() => new Float64Array(n)), T = fr.total;
+  for (let i = 0; i < n; i++) {
+    X[0][i] = hour[i]; X[1][i] = dow[i]; X[2][i] = month[i]; X[3][i] = dow[i] >= 5 ? 1 : 0;
+    X[4][i] = Math.sin(2 * Math.PI * hour[i] / 24); X[5][i] = Math.cos(2 * Math.PI * hour[i] / 24);
+    X[6][i] = Math.sin(2 * Math.PI * dow[i] / 7); X[7][i] = Math.cos(2 * Math.PI * dow[i] / 7);
+    X[8][i] = fr.temp[i]; X[9][i] = fr.occ[i]; X[10][i] = fr.hol[i];
+    X[11][i] = i >= 24 ? T[i-24] : NaN; X[12][i] = i >= 48 ? T[i-48] : NaN; X[13][i] = i >= 168 ? T[i-168] : NaN;
+    if (i >= 47) { let s = 0; for (let k = i - 47; k <= i - 24; k++) s += T[k]; X[14][i] = s / 24; } else X[14][i] = NaN;
+  }
+  return X;
+}
+function frameOf(df) { return {n: df.n, ts: df.ts, cal: df.cal, total: df.total, temp: df.temp, occ: df.occ, hol: df.hol}; }
+/* Future hours: weather / occupancy / holiday assumed equal to the same hour one week earlier. */
+function extendedFrame(df, hours) {
+  const n = df.n, m = n + hours, ts = new Float64Array(m); ts.set(df.ts);
+  for (let k = 0; k < hours; k++) ts[n + k] = df.ts[n - 1] + (k + 1) * HOUR;
+  const ext = a => { const b = new Float64Array(m); b.set(a); return b; };
+  const fr = {n: m, ts, cal: calendar(ts), total: ext(df.total), temp: ext(df.temp), occ: ext(df.occ), hol: ext(df.hol)};
+  for (let k = 0; k < hours; k++) { const i = n + k; fr.total[i] = NaN; fr.temp[i] = df.temp[i - 168]; fr.occ[i] = df.occ[i - 168]; fr.hol[i] = df.hol[i - 168]; }
+  return fr;
+}
+
+/* =====================================================================
+   4. MODEL 1: Gradient-boosted regression trees (XGBoost-style:
+      second-order gain, L2 regularisation, histogram split finding)
+   ===================================================================== */
+async function trainGBDT(X, y, rows, opt, onProg) {
+  const F = X.length, m = rows.length, lam = opt.lambda, lr = opt.lr, minChild = opt.minChild, maxDepth = opt.maxDepth;
+  const edges = [], Xb = [];
+  for (let f = 0; f < F; f++) {
+    const v = new Float64Array(m); for (let k = 0; k < m; k++) v[k] = X[f][rows[k]];
+    const s = Float64Array.from(v).sort(), e = [];
+    for (let b = 1; b < opt.bins; b++) { const q = s[Math.floor(b * m / opt.bins)]; if (!e.length || q > e[e.length-1]) e.push(q); }
+    if (e.length && e[e.length-1] >= s[m-1]) e.pop();     // last edge must leave a right side
+    edges.push(e);
+    const xb = new Uint8Array(m);
+    for (let k = 0; k < m; k++) { let lo = 0, hi = e.length; while (lo < hi) { const mid = (lo + hi) >> 1; if (v[k] <= e[mid]) hi = mid; else lo = mid + 1; } xb[k] = lo; }
+    Xb.push(xb);
+  }
+  const yt = new Float64Array(m); let base = 0; for (let k = 0; k < m; k++) { yt[k] = y[rows[k]]; base += yt[k]; } base /= m;
+  const pred = new Float64Array(m).fill(base), g = new Float64Array(m), idx = new Int32Array(m);
+  const hg = new Float64Array(256), hc = new Int32Array(256), trees = [], imp = new Float64Array(F);
+  for (let t = 0; t < opt.trees; t++) {
+    for (let k = 0; k < m; k++) { g[k] = pred[k] - yt[k]; idx[k] = k; }
+    const tr = {f: [], t: [], l: [], r: [], v: []};
+    const build = (lo, hi, depth) => {
+      const id = tr.f.length; tr.f.push(-1); tr.t.push(0); tr.l.push(-1); tr.r.push(-1); tr.v.push(0);
+      const cnt = hi - lo; let G = 0; for (let j = lo; j < hi; j++) G += g[idx[j]];
+      const leaf = -G / (cnt + lam) * lr;
+      const makeLeaf = () => { tr.v[id] = leaf; for (let j = lo; j < hi; j++) pred[idx[j]] += leaf; return id; };
+      if (depth >= maxDepth || cnt < 2 * minChild) return makeLeaf();
+      const parent = G * G / (cnt + lam); let bestGain = 1e-6, bf = -1, bb = -1;
+      for (let f = 0; f < F; f++) {
+        const nb = edges[f].length + 1; if (nb < 2) continue;
+        hg.fill(0, 0, nb); hc.fill(0, 0, nb); const xb = Xb[f];
+        for (let j = lo; j < hi; j++) { const r = idx[j], b = xb[r]; hg[b] += g[r]; hc[b]++; }
+        let GL = 0, CL = 0;
+        for (let b = 0; b < nb - 1; b++) {
+          GL += hg[b]; CL += hc[b]; const CR = cnt - CL;
+          if (CL < minChild || CR < minChild) continue;
+          const GR = G - GL, gain = GL * GL / (CL + lam) + GR * GR / (CR + lam) - parent;
+          if (gain > bestGain) { bestGain = gain; bf = f; bb = b; }
+        }
+      }
+      if (bf < 0) return makeLeaf();
+      const xb = Xb[bf]; let i = lo, j = hi - 1;
+      while (i <= j) { if (xb[idx[i]] <= bb) i++; else { const tmp = idx[i]; idx[i] = idx[j]; idx[j] = tmp; j--; } }
+      tr.f[id] = bf; tr.t[id] = edges[bf][bb]; imp[bf] += bestGain;
+      tr.l[id] = build(lo, i, depth + 1); tr.r[id] = build(i, hi, depth + 1);
+      return id;
+    };
+    build(0, m, 0);
+    trees.push(tr);
+    if (t % 10 === 9) { onProg && onProg((t + 1) / opt.trees); await sleep(); }
+  }
+  let tot = 0; for (const v of imp) tot += v;
+  return {base, trees, importance: Array.from(imp, v => tot ? v / tot : 0)};
+}
+function predictGBDT(model, X, rowIdx) {
+  const out = new Float64Array(rowIdx.length);
+  for (let k = 0; k < rowIdx.length; k++) {
+    const r = rowIdx[k]; let s = model.base;
+    for (const tr of model.trees) { let nd = 0; while (tr.f[nd] >= 0) nd = X[tr.f[nd]][r] <= tr.t[nd] ? tr.l[nd] : tr.r[nd]; s += tr.v[nd]; }
+    out[k] = s;
+  }
+  return out;
+}
+function allFinite(X, y, i) { for (let f = 0; f < X.length; f++) if (!isFinite(X[f][i])) return false; return isFinite(y[i]); }
+
+async function trainForecaster(df, onProg) {
+  const X = computeFeatures(frameOf(df)), valid = [];
+  for (let i = 0; i < df.n; i++) if (allFinite(X, df.total, i)) valid.push(i);
+  if (valid.length < 500) throw new Error("Not enough continuous hourly data (need at least ~500 usable hours).");
+  const cut = Math.floor(valid.length * 0.8), tr = Int32Array.from(valid.slice(0, cut)), te = Int32Array.from(valid.slice(cut));
+  const model = await trainGBDT(X, df.total, tr, {trees: 250, maxDepth: 6, lr: 0.08, lambda: 1, minChild: 10, bins: 64}, onProg);
+  const pred = predictGBDT(model, X, te);
+  let ae = 0, se = 0, ape = 0, sy = 0;
+  for (let k = 0; k < te.length; k++) { const y = df.total[te[k]], e = pred[k] - y; ae += Math.abs(e); se += e * e; ape += Math.abs(e / Math.max(y, 1e-6)); sy += y; }
+  const my = sy / te.length; let sst = 0; for (let k = 0; k < te.length; k++) sst += (df.total[te[k]] - my) ** 2;
+  const metrics = {MAE: ae / te.length, RMSE: Math.sqrt(se / te.length), R2: 1 - se / sst, "MAPE %": 100 * ape / te.length};
+  return {model, metrics, test: {rows: te, actual: Float64Array.from(te, i => df.total[i]), pred}, importance: FEATURES.map((n, i) => [n, model.importance[i]]).sort((a, b) => b[1] - a[1])};
+}
+function forecastNext(df, model, hours = 24) {
+  const fr = extendedFrame(df, hours), X = computeFeatures(fr), rows = Int32Array.from({length: hours}, (_, k) => df.n + k);
+  return {ts: Float64Array.from(rows, i => fr.ts[i]), y: predictGBDT(model, X, rows)};
+}
+
+/* =====================================================================
+   5. MODEL 2: Isolation Forest + anomaly bookkeeping
+   ===================================================================== */
+const ANOM_F = ["total_kwh","occupancy","temperature","hour","is_weekend","dev_from_week","dev_from_typical"];
+function anomalyColumns(df) {
+  const n = df.n, {hour, dow} = df.cal;
+  const cols = ANOM_F.map(() => new Float64Array(n).fill(NaN)), groups = new Map();
+  for (let i = 0; i < n; i++) { if (!isFinite(df.total[i])) continue; const k = hour[i] * 100 + dow[i] * 10 + Math.round(df.occ[i] * 4); let a = groups.get(k); if (!a) groups.set(k, a = []); a.push(df.total[i]); }
+  const med = new Map(); for (const [k, a] of groups) med.set(k, median(a));
+  for (let i = 0; i < n; i++) {
+    if (!isFinite(df.total[i])) continue;
+    cols[0][i] = df.total[i]; cols[1][i] = df.occ[i]; cols[2][i] = df.temp[i]; cols[3][i] = hour[i]; cols[4][i] = dow[i] >= 5 ? 1 : 0;
+    cols[5][i] = i >= 168 ? df.total[i] - df.total[i-168] : NaN;
+    cols[6][i] = df.total[i] - med.get(hour[i] * 100 + dow[i] * 10 + Math.round(df.occ[i] * 4));
+  }
+  return cols;
+}
+const cFac = n => n <= 1 ? 0 : n === 2 ? 1 : 2 * (Math.log(n - 1) + 0.5772156649) - 2 * (n - 1) / n;
+function buildITree(cols, rows, depth, maxD, rng) {
+  if (depth >= maxD || rows.length <= 1) return {size: rows.length};
+  let f = -1, mn = 0, mx = 0;
+  for (let tries = 0; tries < cols.length * 2; tries++) {
+    const c = Math.floor(rng() * cols.length); mn = Infinity; mx = -Infinity;
+    for (const r of rows) { const v = cols[c][r]; if (v < mn) mn = v; if (v > mx) mx = v; }
+    if (mx > mn) { f = c; break; }
+  }
+  if (f < 0) return {size: rows.length};
+  const v = mn + rng() * (mx - mn), L = [], R = [];
+  for (const r of rows) (cols[f][r] < v ? L : R).push(r);
+  return {f, v, l: buildITree(cols, L, depth + 1, maxD, rng), r: buildITree(cols, R, depth + 1, maxD, rng)};
+}
+function fitIsolationForest(df, contamination) {
+  const cols = anomalyColumns(df), n = df.n, valid = [];
+  for (let i = 0; i < n; i++) { let ok = true; for (const c of cols) if (!isFinite(c[i])) { ok = false; break; } if (ok) valid.push(i); }
+  const rng = mulberry32(42), psi = Math.min(256, valid.length), maxD = Math.ceil(Math.log2(psi)), trees = [];
+  for (let t = 0; t < 100; t++) {
+    const pool = valid.slice(); for (let i = 0; i < psi; i++) { const j = i + Math.floor(rng() * (pool.length - i)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+    trees.push(buildITree(cols, pool.slice(0, psi), 0, maxD, rng));
+  }
+  const score = new Float64Array(n).fill(NaN), cp = cFac(psi);
+  for (const i of valid) {
+    let tot = 0;
+    for (const tr of trees) { let nd = tr, d = 0; while (nd.f !== undefined) { nd = cols[nd.f][i] < nd.v ? nd.l : nd.r; d++; } tot += d + cFac(nd.size); }
+    score[i] = Math.pow(2, -(tot / trees.length) / cp);
+  }
+  return {score, valid, trees};
+}
+function detectAnomalies(df, iso, contamination) {
+  const n = df.n, {hour, dow} = df.cal, sc = Array.from(iso.valid, i => iso.score[i]).sort((a, b) => a - b);
+  const thr = sc[Math.min(sc.length - 1, Math.floor(sc.length * (1 - contamination / 100)))];
+  const g = new Map(); for (const i of iso.valid) { const k = hour[i] * 10 + dow[i]; let a = g.get(k); if (!a) g.set(k, a = []); a.push(df.total[i]); }
+  const med = new Map(); for (const [k, a] of g) med.set(k, median(a));
+  const flag = new Uint8Array(n), expected = new Float64Array(n).fill(NaN), excess = new Float64Array(n);
+  let tp = 0, fp = 0, fn = 0;
+  for (const i of iso.valid) {
+    expected[i] = med.get(hour[i] * 10 + dow[i]);
+    if (iso.score[i] >= thr) { flag[i] = 1; excess[i] = Math.max(0, df.total[i] - expected[i]); }
+    if (df.inj) { if (flag[i] && df.inj[i]) tp++; else if (flag[i]) fp++; else if (df.inj[i]) fn++; }
+  }
+  return {flag, expected, excess, score: iso.score, count: flag.reduce((a, b) => a + b, 0),
+          eval: df.inj ? {precision: tp / Math.max(1, tp + fp), recall: tp / Math.max(1, tp + fn)} : null};
+}
+
+/* =====================================================================
+   6. RECOMMENDATIONS + WHAT-IF SIMULATOR
+   ===================================================================== */
+const AVOID = {ac_unocc: 0.90, light_unocc: 0.70, lab_unocc: 0.60}, AC_PER_DEG = 0.06, CO2 = 0.71;
+const monthly = (df, kwh) => kwh * 30 / Math.max(df.n / 24, 1);
+
+function recommendations(df, an, tariff) {
+  const unocc = i => df.occ[i] < 0.15, hr = df.cal.hour;
+  const peak = i => df.occ[i] >= 0.5 && hr[i] >= 11 && hr[i] < 17, items = [];
+  const add = (title, why, kwh, pr) => { const m = monthly(df, kwh); items.push({title, why, kwh: m, inr: m * tariff, pr}); };
+  const acU = sumWhere(df.ac, unocc); add("Switch off AC when rooms are unoccupied", `AC consumed ${fmt(acU)} kWh during unoccupied hours in this period.`, acU * AVOID.ac_unocc, "High");
+  const liU = sumWhere(df.light, unocc); add("Turn off lights / use occupancy sensors", `Lighting used ${fmt(liU)} kWh while the building was nearly empty.`, liU * AVOID.light_unocc, "Medium");
+  const lbU = sumWhere(df.lab, unocc); add("Power down lab equipment and remove standby load after hours", `Labs drew ${fmt(lbU)} kWh outside working hours.`, lbU * AVOID.lab_unocc, "Medium");
+  const acP = sumWhere(df.ac, peak); add("Raise AC setpoint by 1–2 °C during peak hours (11:00–17:00)", `Peak-hour AC load is ${fmt(acP)} kWh; each +1 °C saves about 6%.`, acP * AC_PER_DEG * 2, "Medium");
+  if (an && an.count > 0) { let ex = 0; for (let i = 0; i < an.excess.length; i++) ex += an.excess[i]; add("Investigate abnormal consumption events", `${an.count} abnormal hours detected, ${fmt(ex)} kWh above expected.`, ex * 0.8, "High"); }
+  return items.sort((a, b) => b.kwh - a.kwh);
+}
+function simulate(df, o, tariff) {
+  const scen = new Float64Array(df.n).fill(NaN); let base = 0, sc = 0;
+  for (let i = 0; i < df.n; i++) {
+    if (!isFinite(df.total[i])) continue;
+    const un = df.occ[i] < 0.15; let ac = df.ac[i], li = df.light[i], lb = df.lab[i];
+    if (o.acOff && un) ac *= 1 - AVOID.ac_unocc;
+    if (o.liOff && un) li *= 1 - AVOID.light_unocc;
+    if (o.labOff && un) lb *= 1 - AVOID.lab_unocc;
+    if (o.labAfter != null && df.cal.hour[i] >= o.labAfter) lb *= 1 - AVOID.lab_unocc;
+    if (o.sp) ac *= 1 - Math.min(AC_PER_DEG * o.sp, 0.5);
+    if (o.acr && !un) ac *= 1 - o.acr / 100;
+    scen[i] = ac + li + lb + df.other[i]; base += df.total[i]; sc += scen[i];
+  }
+  const saved = monthly(df, base - sc);
+  return {scen, s: {baseM: monthly(df, base), scenM: monthly(df, sc), savedM: saved, pct: base ? 100 * (base - sc) / base : 0, inrM: saved * tariff, inrY: saved * tariff * 12, co2Y: saved * 12 * CO2}};
+}
+
+/* =====================================================================
+   7. CHARTS (plain canvas, no libraries)
+   ===================================================================== */
+const PALETTE = ["#2563eb", "#f97316", "#16a34a", "#9333ea", "#0891b2", "#dc2626"];
+const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+function setup(cv) {
+  const dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight;
+  cv.width = Math.max(1, w * dpr); cv.height = Math.max(1, h * dpr);
+  const c = cv.getContext("2d"); c.setTransform(dpr, 0, 0, dpr, 0, 0); c.clearRect(0, 0, w, h);
+  c.font = "12px system-ui,-apple-system,Segoe UI,sans-serif"; return {c, w, h};
+}
+function niceTicks(lo, hi, cnt = 5) {
+  if (!(hi > lo)) { hi = lo + 1; }
+  const raw = (hi - lo) / cnt, mag = Math.pow(10, Math.floor(Math.log10(raw))), r = raw / mag, step = (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * mag;
+  const out = []; for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-6; v += step) out.push(+v.toFixed(10)); return {ticks: out, step};
+}
+function yRange(vals, zero) {
+  let mn = Infinity, mx = -Infinity; for (const v of vals) if (isFinite(v)) { if (v < mn) mn = v; if (v > mx) mx = v; }
+  if (!isFinite(mn)) { mn = 0; mx = 1; }
+  if (zero || (mn >= 0 && mn < 0.6 * mx)) mn = Math.min(0, mn); else mn -= (mx - mn) * 0.08;
+  mx += (mx - mn) * 0.06; return [mn, mx];
+}
+function drawFrame(c, w, h, m, title, legend, yl, yh, yLabel) {
+  c.fillStyle = cssv("--text"); c.font = "600 13px system-ui,sans-serif"; c.textAlign = "left"; c.fillText(title, m.l, 17);
+  c.font = "12px system-ui,sans-serif"; let lx = m.l;
+  for (const lg of legend) { c.fillStyle = lg.color; c.fillRect(lx, 26, 10, 10); c.fillStyle = cssv("--muted"); c.fillText(lg.name, lx + 14, 35); lx += 14 + c.measureText(lg.name).width + 14; }
+  const {ticks} = niceTicks(yl, yh); c.textAlign = "right"; c.textBaseline = "middle";
+  for (const t of ticks) { const y = m.t + (m.h) * (1 - (t - yl) / (yh - yl)); c.strokeStyle = cssv("--grid"); c.beginPath(); c.moveTo(m.l, y); c.lineTo(m.l + m.w, y); c.stroke(); c.fillStyle = cssv("--muted"); c.fillText(fmt(t, t % 1 ? 1 : 0), m.l - 6, y); }
+  c.textBaseline = "alphabetic";
+  if (yLabel) { c.save(); c.translate(13, m.t + m.h / 2); c.rotate(-Math.PI / 2); c.textAlign = "center"; c.fillStyle = cssv("--muted"); c.fillText(yLabel, 0, 0); c.restore(); }
+}
+const fmtX = (ms, span) => { const d = new Date(ms); return span < 2 * DAY ? `${pad(d.getUTCHours())}:00` : span < 5 * DAY ? `${d.getUTCDate()} ${MON[d.getUTCMonth()]} ${pad(d.getUTCHours())}h` : span < 400 * DAY ? `${d.getUTCDate()} ${MON[d.getUTCMonth()]}` : `${MON[d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+
+function lineChart(cv, cfg) {
+  cv._cfg = cfg;
+  if (!cv._init) {
+    cv._init = true;
+    cv.addEventListener("mousemove", e => { const r = cv.getBoundingClientRect(); drawLine(cv, e.clientX - r.left, e.clientY - r.top); });
+    cv.addEventListener("mouseleave", () => drawLine(cv, -1, -1));
+  }
+  drawLine(cv, -1, -1);
+}
+function drawLine(cv, mx, my) {
+  const cfg = cv._cfg, {c, w, h} = setup(cv); if (!w || !cfg) return;
+  const m = {l: 62, t: 46, w: w - 62 - 14, h: h - 46 - 28}, xs = cfg.x, n = xs.length, x0 = xs[0], x1 = xs[n-1], span = x1 - x0 || 1;
+  const all = []; cfg.series.forEach(s => { for (let i = 0; i < s.y.length; i++) all.push(s.y[i]); });
+  (cfg.markers || []).forEach(s => s.y.forEach(v => all.push(v)));
+  const [yl, yh] = yRange(all, false), px = x => m.l + (x - x0) / span * m.w, py = y => m.t + m.h * (1 - (y - yl) / (yh - yl));
+  const legend = cfg.series.map((s, i) => ({name: s.name, color: s.color || PALETTE[i]})).concat((cfg.markers || []).map(s => ({name: s.name, color: s.color})));
+  drawFrame(c, w, h, m, cfg.title, legend, yl, yh, cfg.yLabel);
+  c.fillStyle = cssv("--muted"); c.textAlign = "center";
+  const nt = Math.max(2, Math.floor(m.w / 95)); for (let k = 0; k <= nt; k++) { const x = x0 + span * k / nt; c.textAlign = k === nt ? "right" : k === 0 ? "left" : "center"; c.fillText(fmtX(x, span), px(x), h - 9); }
+  cfg.series.forEach((s, si) => {
+    c.strokeStyle = s.color || PALETTE[si]; c.lineWidth = s.width || 1.6; c.setLineDash(s.dash || []); c.beginPath(); let pen = false;
+    for (let i = 0; i < n; i++) { const v = s.y[i]; if (!isFinite(v)) { pen = false; continue; } if (!pen) { c.moveTo(px(xs[i]), py(v)); pen = true; } else c.lineTo(px(xs[i]), py(v)); }
+    c.stroke(); c.setLineDash([]);
+  });
+  (cfg.markers || []).forEach(s => { c.fillStyle = s.color; for (let i = 0; i < s.x.length; i++) { c.beginPath(); c.arc(px(s.x[i]), py(s.y[i]), 3.6, 0, 7); c.fill(); } });
+  if (mx >= m.l && mx <= m.l + m.w && my >= 0) {
+    const idx = Math.max(0, Math.min(n - 1, Math.round((mx - m.l) / m.w * (n - 1)))), X = px(xs[idx]);
+    c.strokeStyle = cssv("--muted"); c.setLineDash([3, 3]); c.beginPath(); c.moveTo(X, m.t); c.lineTo(X, m.t + m.h); c.stroke(); c.setLineDash([]);
+    const lines = [cfg.daily ? new Date(xs[idx]).toISOString().slice(0, 10) : isoHour(xs[idx])].concat(cfg.series.map(s => `${s.name}: ${fmt(s.y[idx], 1)}`));
+    const bw = Math.max(...lines.map(t => c.measureText(t).width)) + 16, bh = lines.length * 16 + 8; let bx = X + 12; if (bx + bw > w - 4) bx = X - bw - 12;
+    c.fillStyle = cssv("--panel"); c.strokeStyle = cssv("--border"); c.fillRect(bx, m.t + 6, bw, bh); c.strokeRect(bx, m.t + 6, bw, bh);
+    c.textAlign = "left"; c.fillStyle = cssv("--text"); lines.forEach((t, i) => c.fillText(t, bx + 8, m.t + 22 + i * 16));
+    cfg.series.forEach((s, si) => { if (isFinite(s.y[idx])) { c.fillStyle = s.color || PALETTE[si]; c.beginPath(); c.arc(X, py(s.y[idx]), 3.5, 0, 7); c.fill(); } });
+  }
+}
+function stackedBar(cv, cfg) {
+  const {c, w, h} = setup(cv); if (!w) return;
+  const m = {l: 62, t: 46, w: w - 62 - 14, h: h - 46 - 30}, nb = cfg.labels.length;
+  const tot = cfg.labels.map((_, i) => cfg.series.reduce((a, s) => a + s.y[i], 0)), [yl, yh] = yRange(tot, true);
+  drawFrame(c, w, h, m, cfg.title, cfg.series.map((s, i) => ({name: s.name, color: PALETTE[i]})), yl, yh, cfg.yLabel);
+  const bw = m.w / nb;
+  for (let i = 0; i < nb; i++) {
+    let acc = 0; cfg.series.forEach((s, si) => { const y0 = m.t + m.h * (1 - (acc - yl) / (yh - yl)), y1 = m.t + m.h * (1 - (acc + s.y[i] - yl) / (yh - yl)); c.fillStyle = PALETTE[si]; c.fillRect(m.l + i * bw + bw * 0.12, y1, bw * 0.76, y0 - y1); acc += s.y[i]; });
+    if (i % 2 === 0 || nb < 14) { c.fillStyle = cssv("--muted"); c.textAlign = "center"; c.fillText(cfg.labels[i], m.l + (i + 0.5) * bw, h - 12); }
+  }
+}
+function hbar(cv, cfg) {
+  const {c, w, h} = setup(cv); if (!w) return;
+  c.fillStyle = cssv("--text"); c.font = "600 13px system-ui,sans-serif"; c.textAlign = "left"; c.fillText(cfg.title, 14, 18); c.font = "12px system-ui,sans-serif";
+  const n = cfg.labels.length, top = 34, rh = (h - top - 8) / n, mx = Math.max(...cfg.values) || 1, lw = 120, bw = w - lw - 70;
+  for (let i = 0; i < n; i++) {
+    const y = top + i * rh; c.fillStyle = cssv("--muted"); c.textAlign = "right"; c.textBaseline = "middle"; c.fillText(cfg.labels[i], lw - 8, y + rh / 2);
+    c.fillStyle = PALETTE[0]; c.fillRect(lw, y + rh * 0.15, bw * cfg.values[i] / mx, rh * 0.7);
+    c.fillStyle = cssv("--text"); c.textAlign = "left"; c.fillText((cfg.values[i] * 100).toFixed(1) + "%", lw + bw * cfg.values[i] / mx + 6, y + rh / 2);
+  }
+  c.textBaseline = "alphabetic";
+}
+
+/* =====================================================================
+   8. APP STATE + UI
+   ===================================================================== */
+const S = {df: null, res: null, an: null, tariff: 8, contam: 1, tab: "overview"};
+const metric = (k, v, d) => `<div class="metric"><div class="k">${k}</div><div class="v">${v}</div>${d ? `<div class="d">${d}</div>` : ""}</div>`;
+const showMsg = (html, cls) => $("msg").innerHTML = html ? `<div class="banner ${cls}">${html}</div>` : "";
+
+function renderOverview() {
+  const df = S.df; if (!df) return;
+  const days = df.n / 24, tot = sumWhere(df.total, () => true);
+  $("ov-metrics").innerHTML = metric("Hours of data", fmt(df.n)) + metric("Avg hourly load", fmt(tot / df.n, 1) + " kWh") +
+    metric("Est. monthly bill", "₹ " + fmt(tot / days * 30 * S.tariff)) + metric("Anomalous hours", S.an ? fmt(S.an.count) : "–");
+  const nd = Math.floor(df.n / 24), dx = [], dy = [];
+  for (let d = 0; d < nd; d++) { let s = 0, ok = true; for (let h = 0; h < 24; h++) { const v = df.total[d * 24 + h]; if (!isFinite(v)) ok = false; else s += v; } dx.push(df.ts[d * 24]); dy.push(ok ? s : NaN); }
+  lineChart($("c-daily"), {title: "Daily consumption", yLabel: "kWh / day", x: dx, series: [{name: "Daily kWh", y: dy}], daily: true});
+  const prof = COMP.map(() => new Float64Array(24)), cnt = new Float64Array(24);
+  for (let i = 0; i < df.n; i++) { if (!isFinite(df.total[i])) continue; const h = df.cal.hour[i]; cnt[h]++; COMP.forEach((c, k) => prof[k][h] += df[c][i]); }
+  stackedBar($("c-hourly"), {title: "Average load by hour of day", yLabel: "kWh", labels: Array.from({length: 24}, (_, i) => String(i)), series: ["AC", "Lighting", "Lab", "Other"].map((name, k) => ({name, y: Array.from(prof[k], (v, h) => v / (cnt[h] || 1))}))});
+}
+function renderForecast() {
+  const R = S.res; if (!R) return;
+  $("fc-metrics").innerHTML = Object.entries(R.fc.metrics).map(([k, v]) => metric(k, fmt(v, k === "R2" ? 3 : 2))).join("");
+  const T = R.fc.test, n = Math.min(+$("fcn").value, T.rows.length), s = T.rows.length - n;
+  lineChart($("c-fc"), {title: "Actual vs predicted (hold-out period)", yLabel: "kWh", x: Array.from(T.rows.slice(s), i => S.df.ts[i]),
+    series: [{name: "Actual", y: T.actual.slice(s), color: PALETTE[0]}, {name: "Predicted", y: T.pred.slice(s), color: PALETTE[1]}]});
+  lineChart($("c-next"), {title: "Next 24-hour forecast", yLabel: "kWh", x: R.next.ts, series: [{name: "Forecast", y: R.next.y, color: PALETTE[2], width: 2}]});
+  let t = 0; for (const v of R.next.y) t += v;
+  $("next-total").innerHTML = `Forecast total for the next 24 h: <b>${fmt(t)} kWh</b> (≈ ₹ ${fmt(t * S.tariff)}). Future temperature/occupancy are assumed equal to the same hour one week earlier.`;
+  hbar($("c-imp"), {title: "Feature importance (share of total split gain)", labels: R.fc.importance.map(a => a[0]), values: R.fc.importance.map(a => a[1])});
+}
+function renderAnom() {
+  const A = S.an, df = S.df; if (!A) return;
+  $("an-metrics").innerHTML = metric("Anomalous hours", fmt(A.count)) + metric("Excess energy", fmt(A.excess.reduce((a, b) => a + b, 0)) + " kWh") +
+    (A.eval ? metric("Precision (synthetic truth)", fmt(A.eval.precision, 2)) + metric("Recall (synthetic truth)", fmt(A.eval.recall, 2)) : "");
+  const nd = +$("and").value, s = Math.max(0, df.n - nd * 24), x = [], y = [], mk = {name: "Anomaly", color: PALETTE[5], x: [], y: []};
+  for (let i = s; i < df.n; i++) { x.push(df.ts[i]); y.push(df.total[i]); if (A.flag[i]) { mk.x.push(df.ts[i]); mk.y.push(df.total[i]); } }
+  lineChart($("c-an"), {title: "Detected abnormal usage (Isolation Forest)", yLabel: "kWh", x, series: [{name: "kWh", y, width: 1.2}], markers: [mk]});
+  const list = []; for (let i = 0; i < df.n; i++) if (A.flag[i]) list.push(i); list.sort((a, b) => A.excess[b] - A.excess[a]);
+  $("an-table").innerHTML = "<tr><th>Timestamp</th><th class='n'>Actual kWh</th><th class='n'>Expected kWh</th><th class='n'>Excess kWh</th><th class='n'>Score</th></tr>" +
+    list.slice(0, 50).map(i => `<tr><td>${isoHour(df.ts[i])}</td><td class="n">${fmt(df.total[i], 1)}</td><td class="n">${fmt(A.expected[i], 1)}</td><td class="n">${fmt(A.excess[i], 1)}</td><td class="n">${fmt(A.score[i], 3)}</td></tr>`).join("");
+  S.anList = list;
+}
+function renderRecs() {
+  if (!S.df) return;
+  const recs = recommendations(S.df, S.an, S.tariff); S.recs = recs;
+  const k = recs.reduce((a, r) => a + r.kwh, 0), r = recs.reduce((a, r) => a + r.inr, 0);
+  $("rec-total").innerHTML = `<div class="banner ok">Total potential saving ≈ <b>${fmt(k)} kWh / month</b> ≈ <b>₹ ${fmt(r)} / month</b> (₹ ${fmt(r * 12)} / year)</div>`;
+  $("rec-table").innerHTML = "<tr><th>#</th><th>Recommendation</th><th>Why</th><th class='n'>kWh saved / month</th><th class='n'>₹ saved / month</th><th>Priority</th></tr>" +
+    recs.map((x, i) => `<tr><td>${i + 1}</td><td><b>${x.title}</b></td><td>${x.why}</td><td class="n">${fmt(x.kwh, 1)}</td><td class="n">${fmt(x.inr)}</td><td><span class="pill ${x.pr}">${x.pr}</span></td></tr>`).join("");
+}
+function renderSim() {
+  const df = S.df; if (!df) return;
+  const lh = $("s-labh").value, o = {acOff: $("s-ac").checked, liOff: $("s-li").checked, labOff: $("s-lab").checked, labAfter: lh ? +lh : null, sp: +$("s-sp").value, acr: +$("s-acr").value};
+  $("s-spV").textContent = o.sp; $("s-acrV").textContent = o.acr;
+  const {scen, s} = simulate(df, o, S.tariff);
+  $("sim-metrics").innerHTML = metric("Baseline", fmt(s.baseM) + " kWh/mo") + metric("Scenario", fmt(s.scenM) + " kWh/mo", s.pct > 0 ? "−" + fmt(s.pct, 1) + "%" : "") +
+    metric("Savings / month", "₹ " + fmt(s.inrM)) + metric("Savings / year", "₹ " + fmt(s.inrY)) + metric("CO₂ avoided / year", fmt(s.co2Y / 1000, 1) + " t");
+  const k = Math.min(168, df.n);
+  lineChart($("c-sim"), {title: "Last 7 days: baseline vs scenario", yLabel: "kWh", x: df.ts.slice(df.n - k), series: [{name: "Baseline", y: df.total.slice(df.n - k), color: PALETTE[0]}, {name: "Scenario", y: scen.slice(df.n - k), color: PALETTE[2]}]});
+}
+const RENDER = {overview: renderOverview, forecast: renderForecast, anom: renderAnom, recs: renderRecs, sim: renderSim};
+function refresh() { RENDER[S.tab](); }
+
+function dsInfo() {
+  const df = S.df, a = df.attrs, notes = [];
+  if (a.tempEst) notes.push("temperature estimated"); if (a.occEst) notes.push("occupancy estimated");
+  $("dsinfo").innerHTML = `<b>${df.name}</b><br>${fmt(df.n)} hourly rows<br>${isoHour(df.ts[0]).slice(0, 10)} → ${isoHour(df.ts[df.n - 1]).slice(0, 10)}` +
+    (a.applianceEst ? `<br>⚠ appliance split estimated${notes.length ? "; " + notes.join("; ") : ""}` : "") + (a.trimmed ? "<br>Only the most recent 3 years were used." : "") + (a.badRows ? `<br>${fmt(a.badRows)} unreadable rows skipped.` : "");
+}
+function setBusy(b, text, frac) {
+  $("run").disabled = b; $("prog").style.display = b ? "block" : "none"; $("status").textContent = text || "";
+  if (frac != null) $("prog").firstElementChild.style.width = (frac * 100).toFixed(0) + "%";
+}
+let running = false;
+async function runAll() {
+  if (running) return; running = true; showMsg("");
+  try {
+    setBusy(true, "Preparing data…", 0.02);
+    await sleep();
+    let df;
+    if ($("src").value === "synth") df = generateSynthetic();
+    else {
+      const f = $("file").files[0]; if (!f) throw new Error("Choose a CSV file first.");
+      const dtCols = $("dtc").value.split(",").map(s => s.trim()).filter(Boolean), kw = $("kwc").value.trim();
+      if (!dtCols.length || !kw) throw new Error("Enter the datetime column(s) and the consumption column.");
+      setBusy(true, "Reading file…", 0.03);
+      df = await loadCSV(await f.text(), {sep: $("sep").value, dtCols, kwCol: kw, agg: $("agg").value, scale: parseFloat($("scale").value) || 1, dmy: $("dfmt").value === "dmy", tempCol: $("tmc").value.trim(), occCol: $("occ").value.trim()}, p => setBusy(true, "Reading file…", 0.03 + 0.12 * p));
+    }
+    S.df = df; S.res = null; S.an = null; dsInfo();
+    if (df.attrs.applianceEst) showMsg("Appliance-level split (AC / lighting / lab) and any missing temperature / occupancy are <b>estimated</b> from the total, so recommendations and savings are indicative only. Forecasting uses your real consumption data.", "warn");
+    renderOverview();
+    setBusy(true, "Training gradient-boosted trees…", 0.15);
+    const fc = await trainForecaster(df, p => setBusy(true, `Training gradient-boosted trees… ${(p * 100).toFixed(0)}%`, 0.15 + 0.75 * p));
+    setBusy(true, "Fitting Isolation Forest…", 0.92); await sleep();
+    S.iso = fitIsolationForest(df); S.an = detectAnomalies(df, S.iso, S.contam);
+    S.res = {fc, next: forecastNext(df, fc.model, 24)};
+    setBusy(false, "Done ✔ — explore the tabs.", 1);
+    refresh();
+  } catch (e) { console.error(e); setBusy(false, ""); showMsg("⚠ " + e.message, "err"); }
+  running = false;
+}
+
+/* --- wiring --- */
+$("tabs").addEventListener("click", e => { const t = e.target.dataset.t; if (!t) return; S.tab = t; document.querySelectorAll(".tab").forEach(b => b.classList.toggle("active", b.dataset.t === t)); document.querySelectorAll(".pane").forEach(p => p.classList.toggle("active", p.id === "p-" + t)); refresh(); });
+$("src").addEventListener("change", () => $("csvBox").style.display = $("src").value === "csv" ? "block" : "none");
+$("run").addEventListener("click", runAll);
+$("tariff").addEventListener("input", () => { S.tariff = parseFloat($("tariff").value) || 8; if (S.df) refresh(); });
+$("cont").addEventListener("input", () => $("contV").textContent = parseFloat($("cont").value).toFixed(1));
+$("cont").addEventListener("change", () => { S.contam = parseFloat($("cont").value); if (S.iso) { S.an = detectAnomalies(S.df, S.iso, S.contam); refresh(); } });
+[["fcn", "fcnV", renderForecast], ["and", "andV", renderAnom]].forEach(([i, v, fn]) => $(i).addEventListener("input", () => { $(v).textContent = $(i).value; if (S.res) fn(); }));
+["s-ac", "s-li", "s-lab", "s-labh", "s-sp", "s-acr"].forEach(i => $(i).addEventListener("input", () => S.df && renderSim()));
+$("dl-an").addEventListener("click", () => { if (!S.anList) return; download("anomalies.csv", "timestamp,actual_kwh,expected_kwh,excess_kwh,score\n" + S.anList.map(i => [isoHour(S.df.ts[i]), S.df.total[i].toFixed(2), S.an.expected[i].toFixed(2), S.an.excess[i].toFixed(2), S.an.score[i].toFixed(4)].join(",")).join("\n")); });
+$("dl-rec").addEventListener("click", () => { if (!S.recs) return; download("recommendations.csv", "recommendation,why,kwh_saved_per_month,inr_saved_per_month,priority\n" + S.recs.map(r => [`"${r.title}"`, `"${r.why}"`, r.kwh.toFixed(1), r.inr.toFixed(0), r.pr].join(",")).join("\n")); });
+$("preset").addEventListener("change", () => {
+  const p = $("preset").value;
+  if (p === "uci") { $("dtc").value = "Date, Time"; $("kwc").value = "Global_active_power"; $("sep").value = ";"; $("agg").value = "mean"; $("scale").value = 1; $("dfmt").value = "dmy"; }
+  if (p === "pjm") { $("dtc").value = "Datetime"; $("kwc").value = "PJME_MW"; $("sep").value = ","; $("agg").value = "mean"; $("scale").value = 0.001; }
+});
+$("file").addEventListener("change", async () => {
+  const f = $("file").files[0]; if (!f) return;
+  const head = await f.slice(0, 4000).text(), line = head.split("\n")[0].replace(/\r$/, "").replace(/^\uFEFF/, "");
+  $("cols").innerHTML = "Columns found: <b>" + splitLine(line, detectSep(line)).map(s => s.trim().replace(/^"|"$/g, "")).join("</b>, <b>") + "</b>";
+});
+window.addEventListener("resize", () => { if (S.df) refresh(); });
+window.addEventListener("load", runAll);
+</script>
+</body>
+</html>
