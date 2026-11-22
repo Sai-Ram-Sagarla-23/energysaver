@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Campus Energy AI — Standalone Dashboard</title>
+<title>Energy Consumption</title>
 <style>
 :root{--bg:#0b1220;--panel:#121d30;--panel2:#17243a;--line:#293952;--text:#e8eef8;--muted:#9aabc2;--accent:#59d6b4;--blue:#71a7ff;--red:#ff7373;--amber:#ffc66d}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0b1220,#101b2d);color:var(--text);font:14px/1.5 Inter,system-ui,Segoe UI,Arial,sans-serif}
@@ -25,7 +25,7 @@ footer{color:var(--muted);font-size:12px;margin-top:20px}
 </style>
 </head>
 <body>
-<header><h1>⚡ Campus Energy AI</h1><p>Campus electricity analytics · forecasting · model evaluation · appliance analysis · anomaly alerts · bills · savings simulator</p></header>
+<header><h1>Energy Consumption Analysis</h1><p>Campus electricity analytics · forecasting · model evaluation · appliance analysis · anomaly alerts · bills · savings simulator</p></header>
 <main>
 <div class="layout">
 <aside class="panel sidebar">
@@ -88,7 +88,7 @@ footer{color:var(--muted);font-size:12px;margin-top:20px}
 <section class="page" id="reports">
 <div class="panel"><h2>Explainability & project reports</h2><div class="warn"><b>Important model limitation:</b> A single static HTML file cannot run the Python XGBoost, LightGBM, scikit-learn Isolation Forest or SHAP packages from app.py. This standalone edition provides browser-side baseline forecasts and permutation-style feature influence, not genuine SHAP values. Use the Python app for research-grade model results.</div><h3>Browser feature influence (approximation)</h3><div class="tablewrap" id="featureTable"></div><div class="chart"><canvas id="featureChart"></canvas></div><h3>Downloadable reports</h3><div class="actions"><button id="reportJson">Report data JSON</button><button id="reportHtml">Executive report HTML</button><button id="reportPdf">Executive report PDF</button><button id="allCsv">Download all CSV reports</button></div><div class="hint">PDF export uses a browser PDF library when available; HTML/JSON/CSV exports are generated locally.</div></div>
 </section>
-<footer>Campus Energy AI standalone browser edition. Use actual campus meter readings and verified tariffs for operational decisions.</footer>
+<footer>Use actual campus meter readings and verified tariffs for operational decisions.</footer>
 </section></div>
 </main>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
